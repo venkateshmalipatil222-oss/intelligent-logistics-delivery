@@ -6,8 +6,8 @@
 |:---:|---|---|:---:|
 | **0** | **Codebase Audit & Plan** | Environment inspection, MySQL discovery, architectural master plan. | **COMPLETED** |
 | **1** | **Stable Foundation** | FastAPI bootstrap, MySQL connection pool, healthcheck APIs, Alembic init, React + Vite scaffolding, Pytest isolation. | **COMPLETED** |
-| **2** | **Authentication & RBAC** | User registration, login, JWT validation, role-based guards (Admin, Warehouse Manager, Driver, Customer), protected routes. | **NEXT** |
-| **3** | **Core Logistics Pipeline** | Customers, warehouses, packages, drivers, vehicles, orders, and delivery state transitions. | PENDING |
+| **2** | **Authentication & RBAC** | User registration, login, JWT validation, role-based guards (Admin, Warehouse Manager, Driver, Customer), protected routes, Audit logs. | **COMPLETED** |
+| **3** | **Core Logistics Pipeline** | Customers, warehouses, packages, drivers, vehicles, orders, and delivery state transitions. | **NEXT** |
 | **4** | **Assignment & Route Optimization** | Multi-factor weighted driver scoring, Dijkstra shortest path, Nearest-Neighbor heuristics, cost model. | PENDING |
 | **5** | **Real-Time Geolocation & Operations** | Browser GPS tracking, authenticated WebSockets, live Leaflet map updates, ETA calculations, delay detection. | PENDING |
 | **6** | **Proof of Delivery & Notifications** | Time-limited OTP verification, driver confirmation, delivery failure reporting, in-app notifications. | PENDING |

@@ -10,6 +10,7 @@ if BASE_DIR not in sys.path:
 
 from backend.app.core.config import settings
 from backend.app.core.database import engine, Base
+import backend.app.models  # Register all models for metadata discovery
 
 config = context.config
 
