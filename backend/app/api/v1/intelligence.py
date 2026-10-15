@@ -52,7 +52,13 @@ def recommend_driver_for_order(
             detail=f"Order ID {order_id} not found",
         )
 
-    recommendations = DriverAssignmentEngine.rank_drivers_for_order(db=db, order=order)
+    try:
+        recommendations = DriverAssignmentEngine.rank_drivers_for_order(db=db, order=order)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
     recommendations.generated_at = datetime.now(timezone.utc)
     return recommendations
 
@@ -86,7 +92,13 @@ def auto_assign_driver(
         )
 
     # Run ranking
-    recommendations = DriverAssignmentEngine.rank_drivers_for_order(db=db, order=order)
+    try:
+        recommendations = DriverAssignmentEngine.rank_drivers_for_order(db=db, order=order)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
     if not recommendations.recommended_driver_id or recommendations.eligible_candidates_count == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

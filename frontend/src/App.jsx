@@ -13,15 +13,17 @@ import AdminPortal from './pages/admin/AdminPortal';
 import WarehousePortal from './pages/warehouse/WarehousePortal';
 import DriverPortal from './pages/driver/DriverPortal';
 import CustomerPortal from './pages/customer/CustomerPortal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [health, setHealth] = useState(null);
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
-          <Navbar health={health} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
+            <Navbar health={health} />
           
           <main className="flex-1">
             <Routes>
@@ -75,6 +77,7 @@ function App() {
         </div>
       </BrowserRouter>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
