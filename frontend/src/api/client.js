@@ -292,3 +292,21 @@ export const markAllNotificationsRead = async () => {
   const response = await apiClient.put('/api/v1/notifications/read-all');
   return response.data;
 };
+
+// ============================================================================
+// Operational Analytics & Dashboards API
+// ============================================================================
+export const getAnalyticsOverview = async () => {
+  const response = await apiClient.get('/api/v1/analytics/overview');
+  return response.data;
+};
+
+export const getDriverLeaderboard = async (params = {}) => {
+  const response = await apiClient.get('/api/v1/analytics/driver-leaderboard', { params });
+  return response.data;
+};
+
+export const getWarehouseUtilization = async () => {
+  const response = await apiClient.get('/api/v1/analytics/warehouse-utilization');
+  return response.data;
+};

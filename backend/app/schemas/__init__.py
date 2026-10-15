@@ -44,6 +44,16 @@ from backend.app.schemas.logistics import (
     DeliveryResponse,
 )
 
+from backend.app.schemas.analytics import (
+    FleetSummary,
+    DriverSummary,
+    AnalyticsOverviewResponse,
+    DriverLeaderboardItem,
+    DriverLeaderboardResponse,
+    WarehouseUtilizationItem,
+    WarehouseUtilizationResponse,
+)
+
 __all__ = [
     "CustomerBase",
     "CustomerCreate",
@@ -81,4 +91,11 @@ __all__ = [
     "DeliveryVerifyOTP",
     "DeliveryStatusHistoryResponse",
     "DeliveryResponse",
+    "FleetSummary",
+    "DriverSummary",
+    "AnalyticsOverviewResponse",
+    "DriverLeaderboardItem",
+    "DriverLeaderboardResponse",
+    "WarehouseUtilizationItem",
+    "WarehouseUtilizationResponse",
 ]

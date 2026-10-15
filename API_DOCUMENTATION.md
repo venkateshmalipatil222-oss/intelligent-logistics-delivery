@@ -394,3 +394,46 @@
 - **Route:** `PUT /api/v1/notifications/read-all`
 - **Access:** Authenticated
 
+---
+
+## 10. Operational Analytics & Multi-Role Dashboards (`/api/v1/analytics`)
+
+### 10.1 Operational Analytics Overview & Fleet Telemetry
+- **Route:** `GET /api/v1/analytics/overview`
+- **Access:** `ADMIN`, `WAREHOUSE_MANAGER`
+- **Response Model:** `AnalyticsOverviewResponse`
+- **Metrics Provided:**
+  - Total orders, total dispatches, completed vs active vs failed delivery counts.
+  - SLA on-time delivery rate % (calculated against promised delivery timestamps).
+  - Average trip duration (minutes) for completed orders.
+  - Total delivery revenue & accumulated road distance (km).
+  - Categorical volume breakdown across all order and delivery status states.
+  - Order priority distribution (`URGENT`, `HIGH`, `MEDIUM`, `LOW`).
+  - Fleet powertrain summary: Total vehicles, EV vs Diesel/Petrol share, in-service vs available counts.
+  - Driver workforce capacity: Total, available, busy, offline counts and average rating.
+  - Delivery failure reasons frequency distribution.
+
+### 10.2 Driver Performance Leaderboard
+- **Route:** `GET /api/v1/analytics/driver-leaderboard`
+- **Access:** `ADMIN`, `WAREHOUSE_MANAGER`, `DRIVER`
+- **Query Params:** `limit: int = 20` (1 to 100)
+- **Response Model:** `DriverLeaderboardResponse`
+- **Metrics Provided:**
+  - Ranked driver listing sorted by composite performance index (rating 40%, completed volume 40%, success rate 20%).
+  - Driver name, phone, license number, assigned vehicle registration.
+  - Total completed deliveries, failed deliveries, active workload count.
+  - On-time delivery rate percentage (%).
+  - Driver operational availability status.
+
+### 10.3 Warehouse Facility Capacity & Staging Monitor
+- **Route:** `GET /api/v1/analytics/warehouse-utilization`
+- **Access:** `ADMIN`, `WAREHOUSE_MANAGER`
+- **Response Model:** `WarehouseUtilizationResponse`
+- **Metrics Provided:**
+  - Network-wide total capacity (sq ft), total utilized floor space, and network average utilization rate %.
+  - Facility-level metrics: Code, city, state, gross floor capacity (sq ft).
+  - Staged packages count (awaiting driver loading) and in-preparation order count.
+  - Estimated utilized square footage based on active inventory footprint.
+  - Threshold alert indicator: `NORMAL` (<70%), `ELEVATED` (70-90%), `CRITICAL` (>90%).
+  - Available capacity headroom (sq ft).
+

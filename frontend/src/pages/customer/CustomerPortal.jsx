@@ -20,9 +20,11 @@ import { useAuth } from '../../context/AuthContext';
 import { listOrders, trackShipment, regenerateDeliveryOTP } from '../../api/client';
 import { LiveTrackingMap } from '../../components/LiveTrackingMap';
 import { useLiveTracking } from '../../hooks/useLiveTracking';
+import CustomerCostCalculator from '../../components/CustomerCostCalculator';
 
 export default function CustomerPortal() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('tracking'); // 'tracking' | 'calculator'
   const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -179,6 +181,33 @@ export default function CustomerPortal() {
         </form>
       </div>
 
+      {/* Portal Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        <button
+          onClick={() => setActiveTab('tracking')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            activeTab === 'tracking'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Radio className="w-3.5 h-3.5" />
+          <span>Live Tracking & Orders</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('calculator')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            activeTab === 'calculator'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Package className="w-3.5 h-3.5" />
+          <span>Transparent Cost Calculator</span>
+        </button>
+      </div>
+
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -191,10 +220,11 @@ export default function CustomerPortal() {
         </div>
       )}
 
-      {/* Main Grid: Orders on Left, Active Tracking & Map on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Your Orders List */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+      {/* Tab 1: Live Tracking & Orders */}
+      {activeTab === 'tracking' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Your Orders List */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Package className="w-4 h-4 text-emerald-400" />
@@ -426,6 +456,12 @@ export default function CustomerPortal() {
           )}
         </div>
       </div>
+      )}
+
+      {/* Tab 2: Cost Estimator */}
+      {activeTab === 'calculator' && (
+        <CustomerCostCalculator />
+      )}
     </div>
   );
 }

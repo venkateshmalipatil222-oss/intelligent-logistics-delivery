@@ -13,6 +13,7 @@ from backend.app.api.v1.deliveries import router as deliveries_router
 from backend.app.api.v1.intelligence import router as intelligence_router
 from backend.app.api.v1.tracking import router as tracking_router
 from backend.app.api.v1.notifications import router as notifications_router
+from backend.app.api.v1.analytics import router as analytics_router
 
 api_router = APIRouter()
 api_router.include_router(health_router, prefix="/health", tags=["System & Health"])
@@ -26,3 +27,4 @@ api_router.include_router(deliveries_router, prefix="/deliveries", tags=["Delive
 api_router.include_router(intelligence_router, prefix="/intelligence", tags=["Optimization & Algorithmic Intelligence"])
 api_router.include_router(tracking_router, prefix="/tracking", tags=["Real-Time Geolocation & Live Operations"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["In-App Notifications & Alerts"])
+api_router.include_router(analytics_router, prefix="/analytics", tags=["Operational Analytics & Dashboards"])
