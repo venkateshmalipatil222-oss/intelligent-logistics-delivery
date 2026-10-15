@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Truck, ShieldCheck, Activity, Server, LogOut, User, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 export default function Navbar({ health }) {
   const { user, isAuthenticated, logout } = useAuth();
@@ -118,6 +119,8 @@ export default function Navbar({ health }) {
           {/* User Controls */}
           {isAuthenticated ? (
             <div className="flex items-center gap-2.5">
+              <NotificationBell />
+
               <div className="flex flex-col items-end">
                 <span className="text-xs font-bold text-white leading-tight">{user.full_name}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.2 rounded-full border ${getRoleBadgeColor(user.role)}`}>

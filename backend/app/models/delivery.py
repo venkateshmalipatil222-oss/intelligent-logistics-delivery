@@ -22,6 +22,11 @@ class Delivery(Base):
     failure_reason = Column(String(255), nullable=True)
     route_id = Column(Integer, nullable=True)
     otp_code = Column(String(10), nullable=True)  # 6-digit OTP for completion verification
+    otp_expires_at = Column(DateTime(timezone=True), nullable=True)
+    otp_attempts = Column(Integer, default=0, nullable=False)
+    pod_photo_url = Column(String(500), nullable=True)
+    pod_signature_data = Column(Text, nullable=True)
+    recipient_name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

@@ -8,6 +8,7 @@ from backend.app.models.enums import (
     OrderStatus,
     DeliveryPriority,
     DelayRiskCategory,
+    DeliveryFailureReason,
 )
 
 
@@ -245,6 +246,25 @@ class DeliveryVerifyOTP(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     notes: Optional[str] = None
+    recipient_name: Optional[str] = Field(None, max_length=100)
+    pod_photo_url: Optional[str] = None
+    pod_signature_data: Optional[str] = None
+
+
+class DeliveryFailureReport(BaseModel):
+    reason: DeliveryFailureReason
+    notes: str = Field(..., min_length=5, max_length=500)
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    photo_url: Optional[str] = None
+
+
+class DeliveryRegenerateOTPResponse(BaseModel):
+    delivery_id: int
+    delivery_number: str
+    otp_code: str
+    otp_expires_at: Optional[datetime] = None
+    message: str
 
 
 class DeliveryStatusHistoryResponse(BaseModel):
@@ -275,6 +295,11 @@ class DeliveryResponse(BaseModel):
     actual_delivery_time: Optional[datetime] = None
     failed_at: Optional[datetime] = None
     failure_reason: Optional[str] = None
+    otp_expires_at: Optional[datetime] = None
+    otp_attempts: int = 0
+    pod_photo_url: Optional[str] = None
+    pod_signature_data: Optional[str] = None
+    recipient_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

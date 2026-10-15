@@ -256,3 +256,39 @@ export const pingDeliveryLocation = async (deliveryId, telemetry) => {
   const response = await apiClient.post(`/api/v1/tracking/${deliveryId}/ping`, telemetry);
   return response.data;
 };
+
+// ============================================================================
+// Proof of Delivery & Failure Reporting API
+// ============================================================================
+export const regenerateDeliveryOTP = async (deliveryId) => {
+  const response = await apiClient.post(`/api/v1/deliveries/${deliveryId}/regenerate-otp`);
+  return response.data;
+};
+
+export const reportDeliveryFailure = async (deliveryId, failureData) => {
+  const response = await apiClient.post(`/api/v1/deliveries/${deliveryId}/report-failure`, failureData);
+  return response.data;
+};
+
+// ============================================================================
+// In-App Notifications API
+// ============================================================================
+export const listNotifications = async (params = {}) => {
+  const response = await apiClient.get('/api/v1/notifications', { params });
+  return response.data;
+};
+
+export const getUnreadNotificationsCount = async () => {
+  const response = await apiClient.get('/api/v1/notifications/unread-count');
+  return response.data;
+};
+
+export const markNotificationRead = async (notificationId) => {
+  const response = await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+  return response.data;
+};
+
+export const markAllNotificationsRead = async () => {
+  const response = await apiClient.put('/api/v1/notifications/read-all');
+  return response.data;
+};

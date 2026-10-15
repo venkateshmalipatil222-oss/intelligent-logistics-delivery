@@ -13,6 +13,7 @@ import {
   KeyRound,
   Radio,
   RefreshCw,
+  AlertOctagon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -23,6 +24,7 @@ import {
 } from '../../api/client';
 import { DriverLocationBroadcaster } from '../../components/DriverLocationBroadcaster';
 import { LiveTrackingMap } from '../../components/LiveTrackingMap';
+import { DeliveryFailureModal } from '../../components/DeliveryFailureModal';
 import { useLiveTracking } from '../../hooks/useLiveTracking';
 
 export default function DriverPortal() {
@@ -33,6 +35,8 @@ export default function DriverPortal() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
@@ -107,11 +111,13 @@ export default function DriverPortal() {
     try {
       const result = await verifyDeliveryOTP(selectedDelivery.id, {
         otp_code: otpCode.trim(),
-        notes: 'Handed over package directly to verified recipient',
+        recipient_name: recipientName.trim() || undefined,
+        notes: `Handed over package directly to verified recipient (${recipientName.trim() || 'Customer'})`,
       });
       setStatusMessage(`Success! Delivery ${result.delivery_number} verified and completed.`);
       setSelectedDelivery(result);
       setOtpCode('');
+      setRecipientName('');
       fetchData();
     } catch (err) {
       setErrorMessage(err.normalizedMessage || 'Invalid OTP code. Please verify with customer.');
@@ -337,27 +343,46 @@ export default function DriverPortal() {
                     )}
 
                     {['OUT_FOR_DELIVERY', 'IN_TRANSIT'].includes(selectedDelivery.status) && (
-                      <form onSubmit={handleVerifyOTP} className="flex flex-wrap items-center gap-2">
-                        <div className="relative">
-                          <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <form onSubmit={handleVerifyOTP} className="flex flex-wrap items-center gap-2">
                           <input
                             type="text"
-                            maxLength={6}
-                            placeholder="Enter 6-digit OTP"
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
-                            className="pl-8 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono tracking-widest focus:border-emerald-500 focus:outline-none w-44"
+                            placeholder="Recipient Name"
+                            value={recipientName}
+                            onChange={(e) => setRecipientName(e.target.value)}
+                            className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:border-indigo-500 focus:outline-none w-36"
                           />
-                        </div>
+                          <div className="relative">
+                            <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              maxLength={6}
+                              placeholder="6-digit OTP"
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value)}
+                              className="pl-8 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono tracking-widest focus:border-emerald-500 focus:outline-none w-32"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={actionLoading || otpCode.length !== 6}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 transition disabled:opacity-40"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>Verify & Complete</span>
+                          </button>
+                        </form>
+
                         <button
-                          type="submit"
-                          disabled={actionLoading || otpCode.length !== 6}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 transition disabled:opacity-40"
+                          type="button"
+                          onClick={() => setIsFailureModalOpen(true)}
+                          disabled={actionLoading}
+                          className="px-3 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>Verify OTP & Complete</span>
+                          <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Report Issue / Failure</span>
                         </button>
-                      </form>
+                      </div>
                     )}
 
                     {selectedDelivery.status === 'DELIVERED' && (
@@ -366,9 +391,33 @@ export default function DriverPortal() {
                         <span>Delivery Successfully Completed & Verified</span>
                       </div>
                     )}
+
+                    {selectedDelivery.status === 'FAILED' && (
+                      <div className="w-full p-4 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-200 text-xs space-y-1">
+                        <div className="font-bold flex items-center gap-1.5">
+                          <AlertOctagon className="w-4 h-4 text-rose-400" />
+                          <span>Delivery Failed / Exception Logged</span>
+                        </div>
+                        <p className="text-slate-300">
+                          {selectedDelivery.failure_reason || 'Operational exception recorded.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {/* Delivery Failure Exception Modal */}
+              <DeliveryFailureModal
+                isOpen={isFailureModalOpen}
+                onClose={() => setIsFailureModalOpen(false)}
+                delivery={selectedDelivery}
+                onSuccess={(updated) => {
+                  setSelectedDelivery(updated);
+                  setStatusMessage(`Delivery exception submitted: ${updated.failure_reason}`);
+                  fetchData();
+                }}
+              />
 
               {/* Real-Time Leaflet Route Map */}
               <div className="space-y-2">

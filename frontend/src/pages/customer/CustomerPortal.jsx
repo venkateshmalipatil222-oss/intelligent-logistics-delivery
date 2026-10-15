@@ -17,7 +17,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { listOrders, trackShipment } from '../../api/client';
+import { listOrders, trackShipment, regenerateDeliveryOTP } from '../../api/client';
 import { LiveTrackingMap } from '../../components/LiveTrackingMap';
 import { useLiveTracking } from '../../hooks/useLiveTracking';
 
@@ -29,6 +29,7 @@ export default function CustomerPortal() {
   const [trackedShipment, setTrackedShipment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [isRegeneratingOTP, setIsRegeneratingOTP] = useState(false);
   const [error, setError] = useState(null);
 
   // Active delivery ID for real-time map tracking
@@ -89,6 +90,26 @@ export default function CustomerPortal() {
   const handleOrderSelect = (order) => {
     setSelectedOrder(order);
     loadShipmentTracking(order.order_number);
+  };
+
+  const handleRegenerateOTP = async () => {
+    const delId = trackedShipment?.delivery?.id || activeDeliveryId;
+    if (!delId) return;
+    setIsRegeneratingOTP(true);
+    try {
+      const res = await regenerateDeliveryOTP(delId);
+      setTrackedShipment((prev) => ({
+        ...prev,
+        delivery: {
+          ...prev.delivery,
+          otp_code: res.otp_code,
+        },
+      }));
+    } catch (err) {
+      setError(err.normalizedMessage || 'Failed to regenerate OTP');
+    } finally {
+      setIsRegeneratingOTP(false);
+    }
   };
 
   // Milestone timeline stages
@@ -330,9 +351,21 @@ export default function CustomerPortal() {
                       </div>
                     </div>
 
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Hand this 6-digit code to the delivery driver only after inspecting and receiving your package.
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-slate-400 leading-relaxed flex-1">
+                        Hand this 6-digit code to the delivery driver only after inspecting and receiving your package.
+                      </p>
+                      {trackedShipment.delivery.status !== 'DELIVERED' && (
+                        <button
+                          onClick={handleRegenerateOTP}
+                          disabled={isRegeneratingOTP}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition shrink-0 cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isRegeneratingOTP ? 'animate-spin' : ''}`} />
+                          <span>Regenerate OTP</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Driver & Vehicle Card */}

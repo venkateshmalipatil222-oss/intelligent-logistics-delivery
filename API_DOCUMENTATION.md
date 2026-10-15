@@ -329,3 +329,68 @@
 - **Access:** `DRIVER`
 - **Payload:** Continuously streams W3C browser geolocation telemetry coordinates to the backend room manager.
 
+---
+
+## 9. Proof of Delivery & In-App Notifications (`/api/v1/deliveries`, `/api/v1/notifications`)
+
+### 9.1 Time-Limited OTP Proof of Delivery Verification
+- **Route:** `POST /api/v1/deliveries/{id}/verify-otp`
+- **Access:** `DRIVER` (assigned) or `ADMIN`
+- **Request Body:**
+```json
+{
+  "otp_code": "784912",
+  "recipient_name": "Rohan Sharma",
+  "notes": "Verified package contents and handed over at door",
+  "pod_photo_url": "https://cdn.ildo.com/pod/demo.jpg"
+}
+```
+- **Security Protections:**
+  - Enforces maximum attempt lockout (5 attempts max).
+  - Validates time-limited expiration (`otp_expires_at`).
+  - Upon success: sets status `DELIVERED`, records actual delivery time, frees driver and vehicle back to `AVAILABLE`, and triggers in-app notification to customer.
+
+### 9.2 Regenerate Delivery OTP
+- **Route:** `POST /api/v1/deliveries/{id}/regenerate-otp`
+- **Access:** `CUSTOMER` (order owner), `WAREHOUSE_MANAGER`, `ADMIN`
+- **Action:** Generates new 6-digit OTP, sets 2-hour expiration window, resets failed attempt counter to 0, and dispatches in-app notification with the fresh code.
+
+### 9.3 Structured Delivery Failure Reporting
+- **Route:** `POST /api/v1/deliveries/{id}/report-failure`
+- **Access:** `DRIVER` (assigned), `WAREHOUSE_MANAGER`, `ADMIN`
+- **Request Body:**
+```json
+{
+  "reason": "RECIPIENT_UNAVAILABLE",
+  "notes": "Door locked, recipient phone unanswered after 3 attempts",
+  "latitude": 12.9784,
+  "longitude": 77.6408,
+  "photo_url": "https://cdn.ildo.com/proof/locked_gate.jpg"
+}
+```
+- **Supported Reason Codes:** `RECIPIENT_UNAVAILABLE`, `INCORRECT_ADDRESS`, `CUSTOMER_REJECTED`, `ACCESS_RESTRICTED`, `DAMAGED_PACKAGE`, `WEATHER_OR_FORCE_MAJEURE`, `OTHER`.
+- **Action:** Transitions delivery and order to `FAILED`, records exception status history, updates driver failed delivery count, frees vehicle, and fires critical alert to customer and hub manager.
+
+### 9.4 List In-App Notifications
+- **Route:** `GET /api/v1/notifications`
+- **Access:** Authenticated (scoped to current user)
+- **Query Params:** `unread_only: bool = false`, `limit: int = 50`, `skip: int = 0`
+
+### 9.5 Get Unread Notifications Count
+- **Route:** `GET /api/v1/notifications/unread-count`
+- **Access:** Authenticated
+- **Response:**
+```json
+{
+  "unread_count": 3
+}
+```
+
+### 9.6 Mark Notification Read
+- **Route:** `PUT /api/v1/notifications/{id}/read`
+- **Access:** Authenticated (owner only)
+
+### 9.7 Mark All Notifications Read
+- **Route:** `PUT /api/v1/notifications/read-all`
+- **Access:** Authenticated
+

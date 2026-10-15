@@ -1,6 +1,6 @@
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -12,19 +12,29 @@ from backend.app.models.driver import Driver
 from backend.app.models.vehicle import Vehicle
 from backend.app.models.warehouse import Warehouse
 from backend.app.models.user import User
+from backend.app.models.customer import Customer
 from backend.app.models.audit import AuditLog
 from backend.app.models.enums import (
     OrderStatus,
     DriverStatus,
     VehicleStatus,
     UserRole,
+    DeliveryFailureReason,
 )
 from backend.app.schemas.logistics import (
     DeliveryDispatchCreate,
     DeliveryStatusTransition,
     DeliveryVerifyOTP,
+    DeliveryFailureReport,
+    DeliveryRegenerateOTPResponse,
     DeliveryResponse,
     DeliveryStatusHistoryResponse,
+)
+from backend.app.services.notification_service import (
+    notify_delivery_dispatched,
+    notify_delivery_completed,
+    notify_delivery_failed,
+    notify_otp_regenerated,
 )
 from backend.app.api.deps import (
     get_current_user,
@@ -56,6 +66,15 @@ def generate_delivery_number() -> str:
 def generate_otp() -> str:
     """Generate secure 6-digit delivery verification OTP."""
     return f"{random.randint(100000, 999999)}"
+
+
+def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensure datetime is offset-aware in UTC for safe comparisons."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 @router.post(
@@ -147,6 +166,7 @@ def dispatch_order(
     now = datetime.now(timezone.utc)
     del_num = generate_delivery_number()
     otp = generate_otp()
+    otp_expires = now + timedelta(hours=24)
 
     delivery = Delivery(
         delivery_number=del_num,
@@ -158,6 +178,8 @@ def dispatch_order(
         pickup_time=now,
         dispatched_at=now,
         otp_code=otp,
+        otp_expires_at=otp_expires,
+        otp_attempts=0,
     )
     db.add(delivery)
     db.flush()
@@ -195,6 +217,11 @@ def dispatch_order(
         details=f"Dispatched order {order.order_number} as delivery {del_num}",
     )
     db.add(audit)
+
+    # 9. Notify Customer
+    customer_user_id = order.customer.user_id if order.customer else None
+    notify_delivery_dispatched(db, delivery, customer_user_id)
+
     db.commit()
     db.refresh(delivery)
 
@@ -389,9 +416,10 @@ def verify_delivery_otp(
 ):
     """
     Complete handover with secure 6-digit OTP verification:
-    1. Compares submitted OTP with delivery.otp_code.
-    2. Upon success, marks delivery and order as DELIVERED.
-    3. Records timestamped proof-of-delivery event with coordinates.
+    1. Validates OTP attempt limit (max 5) and expiration.
+    2. Compares submitted OTP with delivery.otp_code.
+    3. Upon success, marks delivery and order as DELIVERED with POD proof.
+    4. Triggers completion notification to customer.
     """
     delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
     if not delivery:
@@ -406,19 +434,42 @@ def verify_delivery_otp(
             detail="Delivery has already been completed",
         )
 
-    # Verify OTP match
-    if delivery.otp_code != data.otp_code.strip():
-        logger.warning(f"OTP verification failed for delivery {delivery.delivery_number}: submitted '{data.otp_code}'")
+    now = datetime.now(timezone.utc)
+
+    # 1. Check max attempt lockout
+    if delivery.otp_attempts >= 5:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid OTP code. Please verify with the recipient.",
+            detail="Maximum OTP verification attempts (5) exceeded. Please regenerate a new OTP.",
         )
 
-    now = datetime.now(timezone.utc)
+    # 2. Check time-limited expiration
+    if delivery.otp_expires_at and now > _ensure_utc(delivery.otp_expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Delivery OTP has expired. Recipient must regenerate a fresh OTP.",
+        )
+
+    # 3. Verify OTP match
+    if delivery.otp_code != data.otp_code.strip():
+        delivery.otp_attempts += 1
+        db.commit()
+        remaining = max(0, 5 - delivery.otp_attempts)
+        logger.warning(
+            f"OTP verification failed for delivery {delivery.delivery_number}: attempt {delivery.otp_attempts}/5"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid OTP code. {remaining} attempt(s) remaining.",
+        )
+
     old_status = delivery.status
 
     delivery.status = OrderStatus.DELIVERED
     delivery.actual_delivery_time = now
+    delivery.recipient_name = data.recipient_name
+    delivery.pod_photo_url = data.pod_photo_url
+    delivery.pod_signature_data = data.pod_signature_data
     delivery.order.status = OrderStatus.DELIVERED
 
     # Update driver & vehicle metrics
@@ -428,13 +479,14 @@ def verify_delivery_otp(
         delivery.driver.status = DriverStatus.AVAILABLE
         delivery.vehicle.status = VehicleStatus.AVAILABLE
 
+    history_notes = data.notes or f"Package received and verified by {data.recipient_name or 'Recipient'}"
     history = DeliveryStatusHistory(
         delivery_id=delivery.id,
         from_status=old_status,
         to_status=OrderStatus.DELIVERED,
         changed_by_user_id=current_user.id,
         reason="OTP Handover Verification Successful",
-        notes=data.notes or "Recipient verified and signed off with correct OTP",
+        notes=history_notes,
         latitude=data.latitude,
         longitude=data.longitude,
         timestamp=now,
@@ -449,8 +501,174 @@ def verify_delivery_otp(
         details=f"Delivery {delivery.delivery_number} completed via OTP verification",
     )
     db.add(audit)
+
+    # Notify Customer of completion
+    customer_user_id = delivery.order.customer.user_id if delivery.order and delivery.order.customer else None
+    notify_delivery_completed(db, delivery, customer_user_id)
+
     db.commit()
     db.refresh(delivery)
 
     logger.info(f"Delivery {delivery.delivery_number} completed via OTP verification")
+    return delivery
+
+
+@router.post(
+    "/{delivery_id}/regenerate-otp",
+    response_model=DeliveryRegenerateOTPResponse,
+    summary="Regenerate fresh time-limited OTP for delivery",
+)
+def regenerate_delivery_otp(
+    delivery_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Regenerate a new 6-digit verification OTP.
+    Accessible by Admin, Warehouse Manager, or the Customer who owns this order.
+    """
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+    if not delivery:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Delivery ID {delivery_id} not found",
+        )
+
+    if delivery.status in [OrderStatus.DELIVERED, OrderStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot regenerate OTP for delivery in terminal status {delivery.status.value}",
+        )
+
+    # If customer, verify ownership
+    if current_user.role == UserRole.CUSTOMER:
+        cust = db.query(Customer).filter(Customer.user_id == current_user.id).first()
+        if not cust or delivery.order.customer_id != cust.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You can only regenerate OTPs for your own orders",
+            )
+
+    now = datetime.now(timezone.utc)
+    new_otp = generate_otp()
+    new_expires = now + timedelta(hours=2)
+
+    delivery.otp_code = new_otp
+    delivery.otp_expires_at = new_expires
+    delivery.otp_attempts = 0
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="DELIVERY_OTP_REGENERATED",
+        resource_type="delivery",
+        resource_id=str(delivery.id),
+        details=f"OTP regenerated for delivery {delivery.delivery_number}",
+    )
+    db.add(audit)
+
+    # Send Notification to Customer
+    customer_user_id = delivery.order.customer.user_id if delivery.order and delivery.order.customer else None
+    if customer_user_id:
+        notify_otp_regenerated(db, delivery, customer_user_id, new_otp)
+
+    db.commit()
+    db.refresh(delivery)
+
+    return DeliveryRegenerateOTPResponse(
+        delivery_id=delivery.id,
+        delivery_number=delivery.delivery_number,
+        otp_code=new_otp,
+        otp_expires_at=new_expires,
+        message="A new 6-digit verification OTP has been generated successfully.",
+    )
+
+
+@router.post(
+    "/{delivery_id}/report-failure",
+    response_model=DeliveryResponse,
+    summary="Report delivery failure with structured reason code",
+)
+def report_delivery_failure(
+    delivery_id: int,
+    data: DeliveryFailureReport,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Report delivery attempt failure with structured reason code and remarks.
+    Accessible by assigned Driver, Warehouse Manager, or Admin.
+    """
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+    if not delivery:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Delivery ID {delivery_id} not found",
+        )
+
+    if delivery.status in [OrderStatus.DELIVERED, OrderStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot report failure for delivery in terminal status {delivery.status.value}",
+        )
+
+    # If driver, verify assignment
+    if current_user.role == UserRole.DRIVER:
+        driver = db.query(Driver).filter(Driver.user_id == current_user.id).first()
+        if not driver or delivery.driver_id != driver.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not assigned to this delivery",
+            )
+
+    now = datetime.now(timezone.utc)
+    old_status = delivery.status
+
+    failure_text = f"{data.reason.value}: {data.notes.strip()}"
+    delivery.status = OrderStatus.FAILED
+    delivery.failed_at = now
+    delivery.failure_reason = failure_text
+    delivery.order.status = OrderStatus.FAILED
+
+    if data.photo_url:
+        delivery.pod_photo_url = data.photo_url
+
+    # Update driver metrics
+    delivery.driver.total_deliveries_failed += 1
+    delivery.driver.active_deliveries_count = max(0, delivery.driver.active_deliveries_count - 1)
+    if delivery.driver.active_deliveries_count == 0:
+        delivery.driver.status = DriverStatus.AVAILABLE
+        delivery.vehicle.status = VehicleStatus.AVAILABLE
+
+    # Record History
+    history = DeliveryStatusHistory(
+        delivery_id=delivery.id,
+        from_status=old_status,
+        to_status=OrderStatus.FAILED,
+        changed_by_user_id=current_user.id,
+        reason=f"Delivery Failed: {data.reason.value}",
+        notes=data.notes,
+        latitude=data.latitude,
+        longitude=data.longitude,
+        timestamp=now,
+    )
+    db.add(history)
+
+    # Audit log
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="DELIVERY_FAILURE_REPORTED",
+        resource_type="delivery",
+        resource_id=str(delivery.id),
+        details=f"Delivery {delivery.delivery_number} failed. Reason: {failure_text}",
+    )
+    db.add(audit)
+
+    # Notify Customer & Warehouse Managers
+    customer_user_id = delivery.order.customer.user_id if delivery.order and delivery.order.customer else None
+    notify_delivery_failed(db, delivery, data.reason.value, data.notes, customer_user_id)
+
+    db.commit()
+    db.refresh(delivery)
+
+    logger.warning(f"Delivery {delivery.delivery_number} marked FAILED: {failure_text}")
     return delivery

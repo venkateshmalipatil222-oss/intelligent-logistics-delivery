@@ -58,3 +58,68 @@ def client(db_session):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+from backend.app.models.user import User
+from backend.app.models.customer import Customer
+from backend.app.models.enums import UserRole
+from backend.app.core.security import get_password_hash, create_access_token
+
+
+@pytest.fixture
+def auth_tokens(db_session):
+    """Creates test users across all roles and returns authentication headers."""
+    admin = User(
+        email="test_admin@ildo.com",
+        hashed_password=get_password_hash("AdminPass123!"),
+        full_name="Test Admin",
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+    manager = User(
+        email="test_manager@ildo.com",
+        hashed_password=get_password_hash("ManagerPass123!"),
+        full_name="Test Manager",
+        role=UserRole.WAREHOUSE_MANAGER,
+        is_active=True,
+    )
+    driver_user = User(
+        email="test_driver@ildo.com",
+        hashed_password=get_password_hash("DriverPass123!"),
+        full_name="Test Driver",
+        role=UserRole.DRIVER,
+        is_active=True,
+    )
+    customer_user = User(
+        email="test_customer@ildo.com",
+        hashed_password=get_password_hash("CustomerPass123!"),
+        full_name="Test Customer",
+        role=UserRole.CUSTOMER,
+        is_active=True,
+    )
+    db_session.add_all([admin, manager, driver_user, customer_user])
+    db_session.flush()
+
+    cust = Customer(
+        user_id=customer_user.id,
+        company_name="Test Customer Corp",
+        city="Bengaluru",
+        default_latitude=12.9260,
+        default_longitude=77.6762,
+    )
+    db_session.add(cust)
+    db_session.commit()
+
+    return {
+        "admin": {"Authorization": f"Bearer {create_access_token(admin.id, admin.role.value)}"},
+        "manager": {"Authorization": f"Bearer {create_access_token(manager.id, manager.role.value)}"},
+        "driver": {"Authorization": f"Bearer {create_access_token(driver_user.id, driver_user.role.value)}"},
+        "customer": {"Authorization": f"Bearer {create_access_token(customer_user.id, customer_user.role.value)}"},
+        "users": {
+            "admin": admin,
+            "manager": manager,
+            "driver": driver_user,
+            "customer": customer_user,
+        },
+        "customer_id": cust.id,
+    }
