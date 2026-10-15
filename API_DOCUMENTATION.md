@@ -215,3 +215,44 @@
 }
 ```
 - **Result:** Validates OTP, marks delivery `DELIVERED`, records actual timestamp, frees driver and vehicle to `AVAILABLE`.
+
+---
+
+## 7. Intelligent Decision & Optimization Engines (`/api/v1/intelligence`)
+
+### 7.1 Recommend Drivers for Order
+- **Route:** `GET /api/v1/intelligence/recommend-driver/{order_id}`
+- **Access:** `ADMIN`, `WAREHOUSE_MANAGER`
+- **Output:** Ranked driver evaluations, multi-factor scores ($S = \sum w_i f_i$), rejection reasons, and human-readable rationale explanations.
+
+### 7.2 AI Auto-Assign & Dispatch
+- **Route:** `POST /api/v1/intelligence/auto-assign/{order_id}`
+- **Access:** `ADMIN`, `WAREHOUSE_MANAGER`
+- **Output:** Evaluates candidates and automatically dispatches to #1 eligible driver, generating OTP and initializing status tracking.
+
+### 7.3 Dijkstra Shortest-Path Route Optimization
+- **Route:** `POST /api/v1/intelligence/optimize-route`
+- **Access:** Authenticated
+- **Request Body:**
+```json
+{
+  "origin_latitude": 12.9716,
+  "origin_longitude": 77.5946,
+  "destination_latitude": 12.9352,
+  "destination_longitude": 77.6245,
+  "origin_name": "Bengaluru Central Depot",
+  "destination_name": "Koramangala Hub"
+}
+```
+- **Output:** Modeled road distance, circuity factor, waypoints, turn-by-turn legs, and duration.
+
+### 7.4 Multi-Stop Batch Route Optimization (Nearest-Neighbor TSP)
+- **Route:** `POST /api/v1/intelligence/optimize-multi-stop`
+- **Access:** Authenticated
+- **Output:** Sequenced drop-offs with priority bias and distance savings vs unoptimized route.
+
+### 7.5 Transparent Operating Cost Estimation
+- **Route:** `POST /api/v1/intelligence/estimate-cost`
+- **Access:** Authenticated
+- **Output:** Line-item itemization: fuel consumption, driver labor hours, vehicle depreciation, priority surcharge, cold chain preservation, and 18% GST.
+

@@ -215,3 +215,31 @@ export const verifyDeliveryOTP = async (id, otpData) => {
   const response = await apiClient.post(`/api/v1/deliveries/${id}/verify-otp`, otpData);
   return response.data;
 };
+
+// ============================================================================
+// Intelligent Decision & Optimization Engines API
+// ============================================================================
+export const recommendDriverForOrder = async (orderId) => {
+  const response = await apiClient.get(`/api/v1/intelligence/recommend-driver/${orderId}`);
+  return response.data;
+};
+
+export const autoAssignDriver = async (orderId) => {
+  const response = await apiClient.post(`/api/v1/intelligence/auto-assign/${orderId}`);
+  return response.data;
+};
+
+export const optimizeRoute = async (routeData) => {
+  const response = await apiClient.post('/api/v1/intelligence/optimize-route', routeData);
+  return response.data;
+};
+
+export const optimizeMultiStop = async (multiStopData) => {
+  const response = await apiClient.post('/api/v1/intelligence/optimize-multi-stop', multiStopData);
+  return response.data;
+};
+
+export const estimateCost = async (costParams) => {
+  const response = await apiClient.post('/api/v1/intelligence/estimate-cost', costParams);
+  return response.data;
+};

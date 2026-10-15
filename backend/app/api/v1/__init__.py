@@ -10,6 +10,7 @@ from backend.app.api.v1.vehicles import router as vehicles_router
 from backend.app.api.v1.drivers import router as drivers_router
 from backend.app.api.v1.orders import router as orders_router
 from backend.app.api.v1.deliveries import router as deliveries_router
+from backend.app.api.v1.intelligence import router as intelligence_router
 
 api_router = APIRouter()
 api_router.include_router(health_router, prefix="/health", tags=["System & Health"])
@@ -20,3 +21,4 @@ api_router.include_router(vehicles_router, prefix="/vehicles", tags=["Fleet & Ve
 api_router.include_router(drivers_router, prefix="/drivers", tags=["Driver Operations"])
 api_router.include_router(orders_router, prefix="/orders", tags=["Order Pipeline"])
 api_router.include_router(deliveries_router, prefix="/deliveries", tags=["Delivery Dispatch & State Machine"])
+api_router.include_router(intelligence_router, prefix="/intelligence", tags=["Optimization & Algorithmic Intelligence"])
