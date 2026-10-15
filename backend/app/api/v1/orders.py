@@ -309,12 +309,16 @@ def track_shipment(
 
     if order.delivery:
         delivery_info = {
+            "id": order.delivery.id,
             "delivery_number": order.delivery.delivery_number,
             "status": order.delivery.status.value,
             "dispatched_at": order.delivery.dispatched_at,
             "actual_delivery_time": order.delivery.actual_delivery_time,
             "driver_name": order.delivery.driver.user.full_name if order.delivery.driver and order.delivery.driver.user else "Assigned Fleet Driver",
+            "driver_phone": order.delivery.driver.user.phone if order.delivery.driver and order.delivery.driver.user else None,
             "vehicle_type": order.delivery.vehicle.vehicle_type.value if order.delivery.vehicle else None,
+            "vehicle_registration": order.delivery.vehicle.registration_number if order.delivery.vehicle else None,
+            "otp_code": order.delivery.otp_code,
         }
         for h in order.delivery.status_history:
             timeline.append({

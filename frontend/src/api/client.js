@@ -243,3 +243,16 @@ export const estimateCost = async (costParams) => {
   const response = await apiClient.post('/api/v1/intelligence/estimate-cost', costParams);
   return response.data;
 };
+
+// ============================================================================
+// Real-Time Telemetry & Live Tracking API
+// ============================================================================
+export const getLiveTrackingState = async (deliveryId) => {
+  const response = await apiClient.get(`/api/v1/tracking/${deliveryId}/live`);
+  return response.data;
+};
+
+export const pingDeliveryLocation = async (deliveryId, telemetry) => {
+  const response = await apiClient.post(`/api/v1/tracking/${deliveryId}/ping`, telemetry);
+  return response.data;
+};

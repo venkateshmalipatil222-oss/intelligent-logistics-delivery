@@ -256,3 +256,76 @@
 - **Access:** Authenticated
 - **Output:** Line-item itemization: fuel consumption, driver labor hours, vehicle depreciation, priority surcharge, cold chain preservation, and 18% GST.
 
+---
+
+## 8. Real-Time Geolocation, Dynamic ETA & WebSockets (`/api/v1/tracking`)
+
+### 8.1 Live Tracking REST Snapshot & Fallback
+- **Route:** `GET /api/v1/tracking/{delivery_id}/live`
+- **Access:** Public / Authenticated (Supports instant initial render and automatic fallback polling)
+- **Response (200 OK):**
+```json
+{
+  "delivery_id": 1,
+  "delivery_number": "DEL-20261015-99881",
+  "status": "DISPATCHED",
+  "order_number": "ORD-20261015-BLR01",
+  "driver_name": "Suresh Raina",
+  "driver_phone": "+919876500003",
+  "vehicle_registration": "KA-01-EV-2024",
+  "origin_warehouse": {
+    "name": "Bengaluru Central Logistics Hub",
+    "latitude": 13.0285,
+    "longitude": 77.5197
+  },
+  "destination": {
+    "name": "Customer Drop-off Location",
+    "latitude": 12.9784,
+    "longitude": 77.6408
+  },
+  "current_driver_location": {
+    "latitude": 13.0285,
+    "longitude": 77.5197
+  },
+  "remaining_distance_km": 16.4,
+  "estimated_arrival_time": "2026-10-15T12:45:00Z",
+  "estimated_duration_minutes": 38.5,
+  "uncertainty_buffer_minutes": 7.9,
+  "traffic_multiplier": 1.25,
+  "delay_risk_level": "LOW",
+  "delay_reasons": [],
+  "is_telemetry_stale": false,
+  "last_ping_seconds_ago": 12.0
+}
+```
+
+### 8.2 Driver High-Frequency GPS Telemetry Ping
+- **Route:** `POST /api/v1/tracking/{delivery_id}/ping`
+- **Access:** `DRIVER` (assigned) or `ADMIN`
+- **Request Body:**
+```json
+{
+  "latitude": 13.0124,
+  "longitude": 77.5489,
+  "speed_kmph": 38.5,
+  "accuracy_meters": 6.2,
+  "heading_degrees": 142.0
+}
+```
+- **Action:** Updates driver location in DB, recalculates dynamic ETA, evaluates delay risk, and broadcasts updated state to all connected customers and warehouse dispatch monitors via WebSocket.
+
+### 8.3 Live Delivery WebSocket Stream (Customer & Admin Monitoring)
+- **Route:** `ws://127.0.0.1:8000/api/v1/tracking/ws/{delivery_id}`
+- **Protocol:** WebSocket (JSON frames)
+- **Features:**
+  - Instant live snapshot transmitted upon connection handshake.
+  - Real-time broadcasts pushed immediately upon driver GPS ping.
+  - Built-in ping/pong keepalive frame handling (`{"action": "ping"}` &rarr; `{"action": "pong"}`).
+  - Seamless automatic fallback to 4-second REST polling if network interruptions occur.
+
+### 8.4 Driver Telemetry Broadcast WebSocket Channel
+- **Route:** `ws://127.0.0.1:8000/api/v1/tracking/ws/driver/broadcast`
+- **Protocol:** WebSocket (JSON frames)
+- **Access:** `DRIVER`
+- **Payload:** Continuously streams W3C browser geolocation telemetry coordinates to the backend room manager.
+
