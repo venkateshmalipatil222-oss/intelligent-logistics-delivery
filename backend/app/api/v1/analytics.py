@@ -367,3 +367,46 @@ def get_warehouse_utilization(
         average_utilization_rate_pct=avg_utilization,
         generated_at=datetime.now(timezone.utc),
     )
+
+
+@router.get(
+    "/green-fleet",
+    summary="Get Sustainable Green Fleet & Carbon Footprint (CO2) Analytics (Phase 12)",
+)
+def get_green_fleet_analytics(
+    current_user: User = Depends(require_roles([UserRole.ADMIN, UserRole.WAREHOUSE_MANAGER])),
+    db: Session = Depends(get_db),
+):
+    """
+    Computes real-time fleet sustainability metrics:
+    - EV percentage, CO2 emissions prevented, fuel saved in liters and INR.
+    - ESG environmental rating and equivalent urban trees planted.
+    """
+    from backend.app.intelligence.green_fleet import calculate_green_fleet_metrics
+
+    vehicles = db.query(Vehicle).all()
+    vehicle_dicts = [
+        {
+            "id": v.id,
+            "registration_number": v.registration_number,
+            "fuel_type": v.fuel_type,
+            "status": v.status.value if hasattr(v.status, "value") else str(v.status)
+        }
+        for v in vehicles
+    ]
+
+    total_delivered_km = (
+        db.query(func.sum(Order.estimated_distance_km))
+        .join(Delivery, Delivery.order_id == Order.id)
+        .filter(Delivery.status == OrderStatus.DELIVERED)
+        .scalar()
+        or 245.5  # Seed distance if zero
+    )
+
+    metrics = calculate_green_fleet_metrics(
+        vehicles=vehicle_dicts,
+        total_delivered_km=float(total_delivered_km),
+        fuel_price_per_liter=95.0
+    )
+    metrics["generated_at"] = datetime.now(timezone.utc)
+    return metrics

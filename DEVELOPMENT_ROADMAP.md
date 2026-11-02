@@ -14,3 +14,6 @@
 | **7** | **Multi-Role Dashboards & Analytics** | Admin KPI dashboard & analytics overview, driver performance leaderboard, warehouse dispatch queues & floor capacity monitor, customer cost calculator tool. | **COMPLETED** |
 | **8** | **Testing & Hardening** | Full-spectrum automated test coverage (52/52 passing), state transition guards, RBAC boundary isolation, algorithm edge cases, React error boundary. | **COMPLETED** |
 | **9** | **Final Delivery** | Repeatable demo seed dataset, Docker Compose orchestration, production readiness, and comprehensive academic viva presentation defense guide. | **COMPLETED** |
+| **10** | **Omnichannel Alerts & Smart Booking** | Scheduled delivery time-windows, simulated WhatsApp/SMS dispatch alerts, and contactless photo proof-of-delivery capture. | **COMPLETED** |
+| **11** | **Geofencing & Proximity Telematics** | 100-meter automated arrival boundary triggers, curbside proximity status, and real-time recipient doorstep alerts. | **COMPLETED** |
+| **12** | **Sustainable Green Fleet & Carbon (CO2)** | Carbon footprint calculations ($g\text{ }CO_2/\text{km}$), EV vs Diesel emissions prevented, fuel savings, and ESG environmental ratings. | **COMPLETED** |

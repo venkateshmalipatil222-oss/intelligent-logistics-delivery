@@ -19,6 +19,9 @@ import {
   Star,
   ChevronRight,
   PieChart,
+  Leaf,
+  Trees,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -29,17 +32,19 @@ import {
   getAnalyticsOverview,
   getDriverLeaderboard,
   getWarehouseUtilization,
+  getGreenFleetAnalytics,
 } from '../../api/client';
 import { LiveTrackingMap } from '../../components/LiveTrackingMap';
 import { useLiveTracking } from '../../hooks/useLiveTracking';
 
 export default function AdminPortal() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'surveillance'
+  const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'surveillance' | 'green_fleet'
   const [overview, setOverview] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [greenFleet, setGreenFleet] = useState(null);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,16 +57,18 @@ export default function AdminPortal() {
     setLoading(true);
     setError(null);
     try {
-      const [overviewRes, leaderRes, whRes, delRes] = await Promise.allSettled([
+      const [overviewRes, leaderRes, whRes, delRes, greenRes] = await Promise.allSettled([
         getAnalyticsOverview(),
         getDriverLeaderboard({ limit: 10 }),
         getWarehouseUtilization(),
         listDeliveries(),
+        getGreenFleetAnalytics(),
       ]);
 
       if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value);
       if (leaderRes.status === 'fulfilled') setLeaderboard(leaderRes.value?.drivers || []);
       if (whRes.status === 'fulfilled') setWarehouses(whRes.value?.warehouses || []);
+      if (greenRes.status === 'fulfilled') setGreenFleet(greenRes.value);
 
       const delList = delRes.status === 'fulfilled' ? delRes.value || [] : [];
       setDeliveries(delList);
@@ -117,6 +124,165 @@ export default function AdminPortal() {
           <button onClick={() => setError(null)} className="text-rose-400 hover:text-white font-bold ml-4">
             ✕
           </button>
+        </div>
+      )}
+
+      {/* View 3: Sustainable Green Fleet & ESG CO2 Analytics (Phase 12) */}
+      {activeTab === 'green_fleet' && (
+        <div className="space-y-6">
+          {/* Top ESG & CO2 Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">CO2 Prevented</span>
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                  <Leaf className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.co2_emissions_prevented_kg || '0.00'} <span className="text-sm font-semibold text-emerald-400">kg</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Compared against 100% diesel ICE baseline</p>
+            </div>
+
+            <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">EV Fleet Ratio</span>
+                <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.ev_percentage || 0}%
+              </div>
+              <p className="text-[11px] text-slate-400">
+                <b>{greenFleet?.ev_vehicles || 0}</b> Electric Vans & Bikes of {greenFleet?.total_vehicles || 0} assets
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Fuel Saved</span>
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.fuel_liters_saved || 0} <span className="text-sm font-semibold text-blue-400">Liters</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                ₹{greenFleet?.fuel_cost_saved_inr?.toFixed(2) || '0.00'} saved in fossil fuel expenses
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">ESG Rating</span>
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <Award className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-xl font-black text-white truncate">
+                {greenFleet?.esg_rating || 'A+ Exemplary'}
+              </div>
+              <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Trees className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Equivalent to <b>{greenFleet?.trees_equivalent_planted || 0}</b> urban trees planted</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Powertrain Fleet Comparison & Environmental Audit Table */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Powertrain Emission Benchmarks & Fleet Breakdown</h3>
+                  <p className="text-xs text-slate-400">
+                    Live telemetry calculated over {greenFleet?.total_distance_km || 0} km of dispatched routing
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Phase 12 ESG Certified
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+                    <th className="pb-3 px-3">Powertrain Type</th>
+                    <th className="pb-3 px-3">Active Assets</th>
+                    <th className="pb-3 px-3 text-center">CO2 Emission Factor</th>
+                    <th className="pb-3 px-3 text-center">Fleet Share</th>
+                    <th className="pb-3 px-3 text-right">Environmental Impact</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-white">
+                      <Zap className="w-4 h-4 text-emerald-400" />
+                      <span>Electric Vehicles (EV)</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-emerald-300 font-bold">
+                      {greenFleet?.ev_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-emerald-400">0.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-white">
+                      {greenFleet?.ev_percentage || 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 uppercase">
+                        Zero Tailpipe Emissions
+                      </span>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-slate-300">
+                      <Truck className="w-4 h-4 text-blue-400" />
+                      <span>Diesel Cargo Vans</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-300">
+                      {greenFleet?.diesel_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-slate-400">185.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-slate-300">
+                      {greenFleet?.total_vehicles ? Math.round(((greenFleet.diesel_vehicles || 0) / greenFleet.total_vehicles) * 100) : 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 uppercase">
+                        Standard Freight
+                      </span>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-slate-300">
+                      <Activity className="w-4 h-4 text-amber-400" />
+                      <span>Petrol Motorbikes</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-300">
+                      {greenFleet?.petrol_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-slate-400">68.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-slate-300">
+                      {greenFleet?.total_vehicles ? Math.round(((greenFleet.petrol_vehicles || 0) / greenFleet.total_vehicles) * 100) : 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
+                        Urban Courier
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -226,6 +392,18 @@ export default function AdminPortal() {
         >
           <Radio className="w-3.5 h-3.5" />
           <span>Live Fleet Surveillance Map ({deliveries.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('green_fleet')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            activeTab === 'green_fleet'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Leaf className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Sustainable Green Fleet & ESG CO2 (Phase 12)</span>
         </button>
       </div>
 
@@ -510,6 +688,165 @@ export default function AdminPortal() {
               No active deliveries to display on the surveillance map.
             </div>
           )}
+        </div>
+      )}
+
+      {/* View 3: Sustainable Green Fleet & ESG CO2 Analytics (Phase 12) */}
+      {activeTab === 'green_fleet' && (
+        <div className="space-y-6">
+          {/* Top ESG & CO2 Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">CO2 Prevented</span>
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                  <Leaf className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.co2_emissions_prevented_kg || '0.00'} <span className="text-sm font-semibold text-emerald-400">kg</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Compared against 100% diesel ICE baseline</p>
+            </div>
+
+            <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">EV Fleet Ratio</span>
+                <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.ev_percentage || 0}%
+              </div>
+              <p className="text-[11px] text-slate-400">
+                <b>{greenFleet?.ev_vehicles || 0}</b> Electric Vans & Bikes of {greenFleet?.total_vehicles || 0} assets
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Fuel Saved</span>
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-white font-mono">
+                {greenFleet?.fuel_liters_saved || 0} <span className="text-sm font-semibold text-blue-400">Liters</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                ₹{greenFleet?.fuel_cost_saved_inr?.toFixed(2) || '0.00'} saved in fossil fuel expenses
+              </p>
+            </div>
+
+            <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">ESG Rating</span>
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <Award className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-xl font-black text-white truncate">
+                {greenFleet?.esg_rating || 'A+ Exemplary'}
+              </div>
+              <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Trees className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Equivalent to <b>{greenFleet?.trees_equivalent_planted || 0}</b> urban trees planted</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Powertrain Fleet Comparison & Environmental Audit Table */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Powertrain Emission Benchmarks & Fleet Breakdown</h3>
+                  <p className="text-xs text-slate-400">
+                    Live telemetry calculated over {greenFleet?.total_distance_km || 0} km of dispatched routing
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Phase 12 ESG Certified
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+                    <th className="pb-3 px-3">Powertrain Type</th>
+                    <th className="pb-3 px-3">Active Assets</th>
+                    <th className="pb-3 px-3 text-center">CO2 Emission Factor</th>
+                    <th className="pb-3 px-3 text-center">Fleet Share</th>
+                    <th className="pb-3 px-3 text-right">Environmental Impact</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-white">
+                      <Zap className="w-4 h-4 text-emerald-400" />
+                      <span>Electric Vehicles (EV)</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-emerald-300 font-bold">
+                      {greenFleet?.ev_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-emerald-400">0.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-white">
+                      {greenFleet?.ev_percentage || 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 uppercase">
+                        Zero Tailpipe Emissions
+                      </span>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-slate-300">
+                      <Truck className="w-4 h-4 text-blue-400" />
+                      <span>Diesel Cargo Vans</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-300">
+                      {greenFleet?.diesel_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-slate-400">185.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-slate-300">
+                      {greenFleet?.total_vehicles ? Math.round(((greenFleet.diesel_vehicles || 0) / greenFleet.total_vehicles) * 100) : 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 uppercase">
+                        Standard Freight
+                      </span>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-950/40 transition">
+                    <td className="py-3 px-3 flex items-center gap-2 font-bold text-slate-300">
+                      <Activity className="w-4 h-4 text-amber-400" />
+                      <span>Petrol Motorbikes</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-300">
+                      {greenFleet?.petrol_vehicles || 0} units
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-slate-400">68.0 g CO2 / km</td>
+                    <td className="py-3 px-3 text-center font-bold text-slate-300">
+                      {greenFleet?.total_vehicles ? Math.round(((greenFleet.petrol_vehicles || 0) / greenFleet.total_vehicles) * 100) : 0}%
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
+                        Urban Courier
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

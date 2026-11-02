@@ -140,6 +140,48 @@ def get_live_tracking_snapshot(
     return state
 
 
+@router.get(
+    "/{delivery_id}/geofence",
+    summary="Evaluate Geofence & Proximity to Delivery Drop-off (Phase 11)",
+)
+def check_delivery_geofence(
+    delivery_id: int,
+    radius_meters: float = Query(100.0, ge=10.0, le=5000.0, description="Geofence boundary radius in meters"),
+    db: Session = Depends(get_db),
+):
+    """
+    Evaluates whether the driver has entered the destination geofence (Phase 11).
+    Triggers automated proximity alert for the recipient and auto-arrival status recommendation.
+    """
+    from backend.app.intelligence.geofence import evaluate_geofence_status
+
+    delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
+    if not delivery:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Delivery ID {delivery_id} not found",
+        )
+
+    driver = delivery.driver
+    order = delivery.order
+
+    drv_lat = driver.current_latitude or (order.warehouse.latitude if order.warehouse else 12.9716)
+    drv_lon = driver.current_longitude or (order.warehouse.longitude if order.warehouse else 77.5946)
+    dest_lat = order.destination_latitude
+    dest_lon = order.destination_longitude
+
+    result = evaluate_geofence_status(
+        driver_lat=drv_lat,
+        driver_lon=drv_lon,
+        destination_lat=dest_lat,
+        destination_lon=dest_lon,
+        geofence_radius_meters=radius_meters
+    )
+    result["delivery_id"] = delivery.id
+    result["delivery_number"] = delivery.delivery_number
+    return result
+
+
 @router.post(
     "/{delivery_id}/ping",
     summary="Driver pushes GPS coordinates and broadcasts to room",

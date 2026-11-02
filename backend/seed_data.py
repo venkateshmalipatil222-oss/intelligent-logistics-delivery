@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 # Add workspace root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from sqlalchemy import text
 from backend.app.core.database import SessionLocal, Base, engine
 from backend.app.core.security import get_password_hash
 from backend.app.core.logger import logger
@@ -46,9 +47,26 @@ def seed_database(clean: bool = False):
 
         if clean:
             print("[INFO] Clean flag detected. Resetting database tables...")
+            with engine.connect() as conn:
+                try:
+                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Could not disable foreign key checks: {e}")
             Base.metadata.drop_all(bind=engine)
             Base.metadata.create_all(bind=engine)
-            print("[INFO] Tables re-created successfully.\n")
+            with engine.connect() as conn:
+                try:
+                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+                    # Maintain alembic_version synchronization with latest migration head
+                    conn.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL, PRIMARY KEY (version_num));"))
+                    existing_ver = conn.execute(text("SELECT version_num FROM alembic_version;")).scalar()
+                    if not existing_ver:
+                        conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('08620467021a');"))
+                    conn.commit()
+                except Exception as e:
+                    logger.warning(f"Clean post-create setup warning: {e}")
+            print("[INFO] Tables re-created and schema synchronized successfully.\n")
 
         # -------------------------------------------------------------
         # 1. Users & Customers
@@ -124,6 +142,20 @@ def seed_database(clean: bool = False):
                 "postal_code": "560001",
                 "latitude": 12.9738,
                 "longitude": 77.6119,
+            },
+            {
+                "email": "customer3@ildo.com",
+                "password": "CustomerPass123!",
+                "full_name": "Vikram Malhotra (Pharma Logistics)",
+                "phone": "+919876543209",
+                "role": UserRole.CUSTOMER,
+                "company_name": "Apex Bio-Pharma Health",
+                "address_line1": "72, Electronic City Phase 2",
+                "city": "Bengaluru",
+                "state": "Karnataka",
+                "postal_code": "560100",
+                "latitude": 12.8399,
+                "longitude": 77.6770,
             },
         ]
 
@@ -221,6 +253,19 @@ def seed_database(clean: bool = False):
                 "contact_phone": "+914023456789",
                 "manager_id": None,
             },
+            {
+                "code": "WH-CHE-01",
+                "name": "Chennai Port Maritime Logistics Hub",
+                "address_line1": "Sriperumbudur Industrial Corridor",
+                "city": "Chennai",
+                "state": "Tamil Nadu",
+                "postal_code": "602105",
+                "latitude": 12.9866,
+                "longitude": 79.9482,
+                "capacity_sqft": 65000.0,
+                "contact_phone": "+914423456789",
+                "manager_id": None,
+            },
         ]
 
         wh_map = {}
@@ -299,6 +344,18 @@ def seed_database(clean: bool = False):
                 "status": VehicleStatus.AVAILABLE,
                 "current_latitude": 28.4984,
                 "current_longitude": 77.0850,
+            },
+            {
+                "registration_number": "TS-09-EV-3344",
+                "model": "Euler HiLoad EV Cargo Commercial",
+                "vehicle_type": VehicleType.ELECTRIC_VAN,
+                "max_weight_capacity_kg": 688.0,
+                "max_volume_capacity_m3": 4.5,
+                "fuel_type": "ELECTRIC",
+                "fuel_efficiency_kmpl": 18.0,
+                "status": VehicleStatus.AVAILABLE,
+                "current_latitude": 17.4156,
+                "current_longitude": 78.3427,
             },
         ]
 
@@ -382,10 +439,14 @@ def seed_database(clean: bool = False):
         print("\n[5/7] Seeding Multi-Stage Orders & Package Inventory...")
         c1_user = users_map.get("customer@ildo.com")
         c2_user = users_map.get("customer2@ildo.com")
+        c3_user = users_map.get("customer3@ildo.com")
         c1_cust = db.query(Customer).filter(Customer.user_id == c1_user.id).first()
         c2_cust = db.query(Customer).filter(Customer.user_id == c2_user.id).first()
+        c3_cust = db.query(Customer).filter(Customer.user_id == c3_user.id).first() if c3_user else c1_cust
         blr_wh = wh_map.get("WH-BLR-01")
         bom_wh = wh_map.get("WH-BOM-01")
+        del_wh = wh_map.get("WH-DEL-01")
+        hyd_wh = wh_map.get("WH-HYD-01")
 
         orders_catalog = [
             # 1. PENDING (Placed by customer, awaiting warehouse confirmation)
@@ -556,6 +617,118 @@ def seed_database(clean: bool = False):
                     "is_ready_for_dispatch": True,
                 },
             },
+            # 7. CONFIRMED (Confirmed by customer, awaiting warehouse slot allocation)
+            {
+                "order_number": "ORD-20261015-BLR07",
+                "customer_id": c3_cust.id,
+                "warehouse_id": blr_wh.id,
+                "destination_address": "901 World Trade Center, Brigade Gateway, Malleshwaram",
+                "destination_city": "Bengaluru",
+                "destination_state": "Karnataka",
+                "destination_postal_code": "560055",
+                "destination_latitude": 13.0118,
+                "destination_longitude": 77.5552,
+                "priority": DeliveryPriority.MEDIUM,
+                "status": OrderStatus.CONFIRMED,
+                "estimated_distance_km": 11.2,
+                "estimated_delivery_cost": 195.0,
+                "package": {
+                    "tracking_number": "TRK-BLR-1007",
+                    "weight_kg": 5.2,
+                    "length_cm": 30.0,
+                    "width_cm": 20.0,
+                    "height_cm": 15.0,
+                    "volume_m3": 0.0090,
+                    "category": "OFFICE_HARDWARE",
+                    "is_fragile": False,
+                    "requires_cold_storage": False,
+                    "is_ready_for_dispatch": False,
+                },
+            },
+            # 8. IN_TRANSIT (Cold-chain vital insulin kit en route with live GPS telemetry)
+            {
+                "order_number": "ORD-20261015-BLR08",
+                "customer_id": c3_cust.id,
+                "warehouse_id": blr_wh.id,
+                "destination_address": "Apex Diagnostic Center, 27th Main, HSR Layout Sector 1",
+                "destination_city": "Bengaluru",
+                "destination_state": "Karnataka",
+                "destination_postal_code": "560102",
+                "destination_latitude": 12.9116,
+                "destination_longitude": 77.6389,
+                "priority": DeliveryPriority.URGENT,
+                "status": OrderStatus.IN_TRANSIT,
+                "estimated_distance_km": 21.4,
+                "estimated_delivery_cost": 365.0,
+                "package": {
+                    "tracking_number": "TRK-BLR-1008",
+                    "weight_kg": 3.0,
+                    "length_cm": 20.0,
+                    "width_cm": 15.0,
+                    "height_cm": 12.0,
+                    "volume_m3": 0.0036,
+                    "category": "COLD_CHAIN_VACCINES",
+                    "is_fragile": True,
+                    "requires_cold_storage": True,
+                    "is_ready_for_dispatch": True,
+                },
+            },
+            # 9. OUT_FOR_DELIVERY (Last-mile express delivery with verified OTP)
+            {
+                "order_number": "ORD-20261015-BLR09",
+                "customer_id": c2_cust.id,
+                "warehouse_id": blr_wh.id,
+                "destination_address": "12, 12th Main Road, HAL 2nd Stage, Indiranagar",
+                "destination_city": "Bengaluru",
+                "destination_state": "Karnataka",
+                "destination_postal_code": "560008",
+                "destination_latitude": 12.9719,
+                "destination_longitude": 77.6412,
+                "priority": DeliveryPriority.HIGH,
+                "status": OrderStatus.OUT_FOR_DELIVERY,
+                "estimated_distance_km": 15.6,
+                "estimated_delivery_cost": 285.0,
+                "package": {
+                    "tracking_number": "TRK-BLR-1009",
+                    "weight_kg": 4.1,
+                    "length_cm": 28.0,
+                    "width_cm": 18.0,
+                    "height_cm": 14.0,
+                    "volume_m3": 0.0070,
+                    "category": "PRECISION_ELECTRONICS",
+                    "is_fragile": True,
+                    "requires_cold_storage": False,
+                    "is_ready_for_dispatch": True,
+                },
+            },
+            # 10. RETURNED (Customer declined receipt, returned to staging hub)
+            {
+                "order_number": "ORD-20261014-DEL10",
+                "customer_id": c1_cust.id,
+                "warehouse_id": del_wh.id if del_wh else blr_wh.id,
+                "destination_address": "Cyber Hub Tower 8B, DLF Phase 2",
+                "destination_city": "Gurugram",
+                "destination_state": "Haryana",
+                "destination_postal_code": "122002",
+                "destination_latitude": 28.4906,
+                "destination_longitude": 77.0898,
+                "priority": DeliveryPriority.LOW,
+                "status": OrderStatus.RETURNED,
+                "estimated_distance_km": 12.0,
+                "estimated_delivery_cost": 210.0,
+                "package": {
+                    "tracking_number": "TRK-DEL-1010",
+                    "weight_kg": 2.5,
+                    "length_cm": 20.0,
+                    "width_cm": 15.0,
+                    "height_cm": 10.0,
+                    "volume_m3": 0.0030,
+                    "category": "CONSUMER_GOODS",
+                    "is_fragile": False,
+                    "requires_cold_storage": False,
+                    "is_ready_for_dispatch": True,
+                },
+            },
         ]
 
         saved_orders = {}
@@ -714,6 +887,96 @@ def seed_database(clean: bool = False):
                 db.add_all([h_f1, h_f2])
                 print(f"  + Failed Delivery Record: {fail_del.delivery_number} [Reason: {fail_del.failure_reason}]")
 
+        # 6d. In-Transit Active Order (ORD-20261015-BLR08)
+        ord_transit = saved_orders.get("ORD-20261015-BLR08")
+        if ord_transit:
+            del_num = f"DEL-{ord_transit.order_number}"
+            del_existing = db.query(Delivery).filter((Delivery.order_id == ord_transit.id) | (Delivery.delivery_number == del_num)).first()
+            if not del_existing:
+                transit_del = Delivery(
+                    delivery_number=del_num,
+                    order_id=ord_transit.id,
+                    driver_id=driver2.id,
+                    vehicle_id=veh2.id,
+                    warehouse_id=blr_wh.id,
+                    status=OrderStatus.IN_TRANSIT,
+                    pickup_time=now - timedelta(minutes=25),
+                    dispatched_at=now - timedelta(minutes=25),
+                    otp_code="624108",
+                    otp_expires_at=now + timedelta(hours=3),
+                    otp_attempts=0,
+                )
+                db.add(transit_del)
+                db.flush()
+
+                h_t1 = DeliveryStatusHistory(
+                    delivery_id=transit_del.id,
+                    from_status=OrderStatus.READY_FOR_DISPATCH,
+                    to_status=OrderStatus.DISPATCHED,
+                    changed_by_user_id=mgr_blr.id if mgr_blr else None,
+                    reason="Dispatched on express two-wheeler cold-chain route",
+                    latitude=blr_wh.latitude,
+                    longitude=blr_wh.longitude,
+                    timestamp=now - timedelta(minutes=25),
+                )
+                h_t2 = DeliveryStatusHistory(
+                    delivery_id=transit_del.id,
+                    from_status=OrderStatus.DISPATCHED,
+                    to_status=OrderStatus.IN_TRANSIT,
+                    changed_by_user_id=d2_user.id,
+                    reason="En route via Outer Ring Road - GPS telemetry active",
+                    latitude=12.9810,
+                    longitude=77.6250,
+                    timestamp=now - timedelta(minutes=10),
+                )
+                db.add_all([h_t1, h_t2])
+                print(f"  + In-Transit Delivery: {transit_del.delivery_number} (OTP: {transit_del.otp_code})")
+
+        # 6e. Out For Delivery Active Order (ORD-20261015-BLR09)
+        ord_ofd = saved_orders.get("ORD-20261015-BLR09")
+        if ord_ofd:
+            del_num = f"DEL-{ord_ofd.order_number}"
+            del_existing = db.query(Delivery).filter((Delivery.order_id == ord_ofd.id) | (Delivery.delivery_number == del_num)).first()
+            if not del_existing:
+                ofd_del = Delivery(
+                    delivery_number=del_num,
+                    order_id=ord_ofd.id,
+                    driver_id=driver1.id,
+                    vehicle_id=veh1.id,
+                    warehouse_id=blr_wh.id,
+                    status=OrderStatus.OUT_FOR_DELIVERY,
+                    pickup_time=now - timedelta(minutes=50),
+                    dispatched_at=now - timedelta(minutes=50),
+                    otp_code="439812",
+                    otp_expires_at=now + timedelta(hours=2),
+                    otp_attempts=0,
+                )
+                db.add(ofd_del)
+                db.flush()
+
+                h_o1 = DeliveryStatusHistory(
+                    delivery_id=ofd_del.id,
+                    from_status=OrderStatus.READY_FOR_DISPATCH,
+                    to_status=OrderStatus.DISPATCHED,
+                    changed_by_user_id=mgr_blr.id if mgr_blr else None,
+                    reason="Loaded on EV delivery van",
+                    latitude=blr_wh.latitude,
+                    longitude=blr_wh.longitude,
+                    timestamp=now - timedelta(minutes=50),
+                )
+                h_o2 = DeliveryStatusHistory(
+                    delivery_id=ofd_del.id,
+                    from_status=OrderStatus.DISPATCHED,
+                    to_status=OrderStatus.OUT_FOR_DELIVERY,
+                    changed_by_user_id=d1_user.id,
+                    reason="Driver within 2 km of destination. Contacting customer for OTP verification.",
+                    latitude=12.9750,
+                    longitude=77.6320,
+                    timestamp=now - timedelta(minutes=8),
+                )
+                db.add_all([h_o1, h_o2])
+                print(f"  + Out-for-Delivery: {ofd_del.delivery_number} (OTP: {ofd_del.otp_code})")
+
         # -------------------------------------------------------------
         # 7. Notifications & Audit Logs
         # -------------------------------------------------------------
@@ -743,6 +1006,39 @@ def seed_database(clean: bool = False):
                 "title": "Warehouse Capacity Staging Alert",
                 "message": "Bengaluru Central Hub currently has 3 urgent orders waiting for driver allocation.",
                 "is_read": False,
+            },
+            {
+                "user_id": d1_user.id,
+                "type": NotificationType.DISPATCH_EVENT,
+                "severity": NotificationSeverity.INFO,
+                "title": "New Out-For-Delivery Assignment",
+                "message": "Delivery DEL-ORD-20261015-BLR09 is active. Proceed to Indiranagar for recipient OTP verification.",
+                "is_read": False,
+            },
+            {
+                "user_id": d2_user.id,
+                "type": NotificationType.DISPATCH_EVENT,
+                "severity": NotificationSeverity.INFO,
+                "title": "Cold-Chain Route Active",
+                "message": "Delivery DEL-ORD-20261015-BLR08 requires temperature-controlled transit to HSR Layout.",
+                "is_read": False,
+            },
+            {
+                "user_id": c3_user.id if c3_user else c1_user.id,
+                "type": NotificationType.DISPATCH_EVENT,
+                "severity": NotificationSeverity.INFO,
+                "title": "Vaccine Shipment In-Transit",
+                "message": "Your diagnostic shipment TRK-BLR-1008 is en route. Expected delivery in 25 minutes.",
+                "is_read": False,
+            },
+            {
+                "user_id": admin_user.id if admin_user else c1_user.id,
+                "type": NotificationType.SYSTEM_ALERT,
+                "severity": NotificationSeverity.SUCCESS,
+                "title": "Platform Health: Fleet Telemetry Synchronized",
+                "message": "All 5 active warehouses and 6 commercial vehicles transmitting telemetry within calibrated tolerances.",
+                "is_read": True,
+                "read_at": now - timedelta(hours=1),
             },
         ]
 

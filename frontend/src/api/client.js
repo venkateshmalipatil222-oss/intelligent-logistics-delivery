@@ -310,3 +310,18 @@ export const getWarehouseUtilization = async () => {
   const response = await apiClient.get('/api/v1/analytics/warehouse-utilization');
   return response.data;
 };
+
+// ============================================================================
+// Phase 11 & Phase 12 APIs: Geofencing & Sustainable Green Fleet
+// ============================================================================
+export const getGreenFleetAnalytics = async () => {
+  const response = await apiClient.get('/api/v1/analytics/green-fleet');
+  return response.data;
+};
+
+export const checkGeofence = async (deliveryId, radiusMeters = 100) => {
+  const response = await apiClient.get(`/api/v1/tracking/${deliveryId}/geofence`, {
+    params: { radius_meters: radiusMeters },
+  });
+  return response.data;
+};

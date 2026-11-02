@@ -19,7 +19,7 @@ export default function Footer() {
             <Database className="w-3.5 h-3.5 text-slate-400" /> MySQL 8.0
           </span>
           <span className="flex items-center gap-1.5">
-            <GitBranch className="w-3.5 h-3.5 text-slate-400" /> Phase 1 Foundation
+            <GitBranch className="w-3.5 h-3.5 text-emerald-400" /> v1.2 Production Ready (Phases 0-12)
           </span>
         </div>
       </div>

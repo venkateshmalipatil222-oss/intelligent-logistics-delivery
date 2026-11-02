@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Server,
   Database,
@@ -11,7 +12,12 @@ import {
   Layers,
   ArrowRight,
   Shield,
-  Zap
+  Zap,
+  LogIn,
+  Truck,
+  Warehouse,
+  ShieldCheck,
+  User
 } from 'lucide-react';
 import { getSystemHealth, pingBackend } from '../api/client';
 
@@ -49,15 +55,18 @@ export default function HealthDashboard({ health, setHealth }) {
 
   const roadmapPhases = [
     { id: 0, name: 'Phase 0: Audit & Architecture', status: 'completed', desc: 'Environment inspection, runtime checks, architectural blueprint.' },
-    { id: 1, name: 'Phase 1: Stable Foundation', status: 'active', desc: 'FastAPI startup, MySQL connection pool, health endpoints, React layout.' },
-    { id: 2, name: 'Phase 2: Authentication & RBAC', status: 'pending', desc: 'JWT token issuance, bcrypt hashing, Admin, Warehouse, Driver, Customer roles.' },
-    { id: 3, name: 'Phase 3: Core Logistics Pipeline', status: 'pending', desc: 'Order lifecycle, warehouse staging, drivers, vehicles, dispatch state machine.' },
-    { id: 4, name: 'Phase 4: Assignment & Routing', status: 'pending', desc: 'Multi-factor driver scoring, Dijkstra graph routing, nearest-neighbor heuristics.' },
-    { id: 5, name: 'Phase 5: Real-time Geolocation', status: 'pending', desc: 'Browser GPS updates, WebSocket streaming, live Leaflet map, ETA engine.' },
-    { id: 6, name: 'Phase 6: Proof of Delivery', status: 'pending', desc: 'Time-limited OTP verification, driver confirmation, event notifications.' },
-    { id: 7, name: 'Phase 7: Multi-Role Dashboards', status: 'pending', desc: 'Admin analytics, warehouse dispatch queues, driver mobile view, customer portal.' },
-    { id: 8, name: 'Phase 8: Testing & Hardening', status: 'pending', desc: 'Automated Pytest suite, edge-case validation, migration regression tests.' },
-    { id: 9, name: 'Phase 9: Final Delivery & Docs', status: 'pending', desc: 'Seed data script, Docker Compose, interview viva guide, GitHub release.' },
+    { id: 1, name: 'Phase 1: Stable Foundation', status: 'completed', desc: 'FastAPI startup, MySQL connection pool, health endpoints, React layout.' },
+    { id: 2, name: 'Phase 2: Authentication & RBAC', status: 'completed', desc: 'JWT token issuance, bcrypt hashing, Admin, Warehouse, Driver, Customer roles.' },
+    { id: 3, name: 'Phase 3: Core Logistics Pipeline', status: 'completed', desc: 'Order lifecycle, warehouse staging, drivers, vehicles, dispatch state machine.' },
+    { id: 4, name: 'Phase 4: Assignment & Routing', status: 'completed', desc: 'Multi-factor driver scoring, Dijkstra graph routing, nearest-neighbor heuristics.' },
+    { id: 5, name: 'Phase 5: Real-time Geolocation', status: 'completed', desc: 'Browser GPS updates, WebSocket streaming, live Leaflet map, ETA engine.' },
+    { id: 6, name: 'Phase 6: Proof of Delivery', status: 'completed', desc: 'Time-limited OTP verification, driver confirmation, event notifications.' },
+    { id: 7, name: 'Phase 7: Multi-Role Dashboards', status: 'completed', desc: 'Admin analytics, warehouse dispatch queues, driver mobile view, customer portal.' },
+    { id: 8, name: 'Phase 8: Testing & Hardening', status: 'completed', desc: 'Automated Pytest suite (52/52 passed), edge-case validation, migration regression tests.' },
+    { id: 9, name: 'Phase 9: Final Delivery & Docs', status: 'completed', desc: 'Seed data script, Docker Compose, interview viva guide, GitHub release.' },
+    { id: 10, name: 'Phase 10: Omnichannel Alerts & Smart Booking', status: 'completed', desc: 'Scheduled delivery time-windows, simulated WhatsApp/SMS alerts, and contactless photo proof-of-delivery.' },
+    { id: 11, name: 'Phase 11: Geofencing & Automated Arrival', status: 'completed', desc: '100m proximity boundary triggers, curbside detection, and automated recipient doorstep arrival notifications.' },
+    { id: 12, name: 'Phase 12: Sustainable Green Fleet & Carbon (CO2)', status: 'completed', desc: 'Real-time carbon emissions calculations, EV vs Diesel footprint savings, and ESG environmental grading.' },
   ];
 
   return (
@@ -189,15 +198,109 @@ export default function HealthDashboard({ health, setHealth }) {
         </div>
       </div>
 
+      {/* Quick Launch & Role Portals */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-400" />
+              <span>Multi-Role Platform Portals</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Select any role below to sign in and experience the live system.
+            </p>
+          </div>
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Go to Sign In</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link
+            to="/login"
+            className="p-4 rounded-xl bg-slate-950/60 border border-purple-500/20 hover:border-purple-500/50 hover:bg-slate-950 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                Admin
+              </span>
+              <ShieldCheck className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <h4 className="font-bold text-sm text-white">System Admin</h4>
+            <p className="text-xs text-slate-400 mt-1">KPI analytics, audit logs, fleet overview</p>
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+              admin@ildo.com
+            </div>
+          </Link>
+
+          <Link
+            to="/login"
+            className="p-4 rounded-xl bg-slate-950/60 border border-blue-500/20 hover:border-blue-500/50 hover:bg-slate-950 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                Warehouse
+              </span>
+              <Warehouse className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <h4 className="font-bold text-sm text-white">Warehouse Manager</h4>
+            <p className="text-xs text-slate-400 mt-1">Hub staging queues & auto-dispatch</p>
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+              manager@ildo.com
+            </div>
+          </Link>
+
+          <Link
+            to="/login"
+            className="p-4 rounded-xl bg-slate-950/60 border border-amber-500/20 hover:border-amber-500/50 hover:bg-slate-950 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                Driver
+              </span>
+              <Truck className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <h4 className="font-bold text-sm text-white">Fleet Driver</h4>
+            <p className="text-xs text-slate-400 mt-1">Live GPS tracking & OTP proof-of-delivery</p>
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+              driver@ildo.com
+            </div>
+          </Link>
+
+          <Link
+            to="/login"
+            className="p-4 rounded-xl bg-slate-950/60 border border-emerald-500/20 hover:border-emerald-500/50 hover:bg-slate-950 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Customer
+              </span>
+              <User className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <h4 className="font-bold text-sm text-white">Customer Shipper</h4>
+            <p className="text-xs text-slate-400 mt-1">Order creation, live tracking & cost calculator</p>
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+              customer@ildo.com
+            </div>
+          </Link>
+        </div>
+      </div>
+
       {/* Phase Roadmap Progression */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Layers className="w-4 h-4 text-indigo-400" />
+            <Layers className="w-4 h-4 text-emerald-400" />
             <span>Implementation Phase Roadmap</span>
           </h3>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold">
-            Phase 1 Active
+          <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>All Phases Completed (v1.0 Production Ready)</span>
           </span>
         </div>
 

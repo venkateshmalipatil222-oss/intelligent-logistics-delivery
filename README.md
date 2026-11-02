@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-19.0+-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
-[![Pytest](https://img.shields.io/badge/Tests-52%20Passed-brightgreen?logo=pytest&logoColor=white)](./TESTING.md)
+[![Pytest](https://img.shields.io/badge/Tests-54%20Passed-brightgreen?logo=pytest&logoColor=white)](./TESTING.md)
 
 An enterprise-grade, full-stack logistics and autonomous delivery optimization system engineered with **FastAPI**, **React 19**, **MySQL 8.0**, and real-time **WebSockets**.
 

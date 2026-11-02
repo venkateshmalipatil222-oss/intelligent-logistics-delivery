@@ -35,12 +35,40 @@ export const LiveTrackingMap = ({
       zoomControl: false,
     });
 
-    // Dark sleek CartoDB tile layer for modern logistics aesthetics
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(map);
+    // Tile Layer: Mapbox Streets v12 (if token configured) or fallback to CARTO Voyager
+    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+    if (mapboxToken && mapboxToken.startsWith('pk.')) {
+      const mapboxLayer = L.tileLayer(
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`,
+        {
+          attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          tileSize: 512,
+          zoomOffset: -1,
+          maxZoom: 19,
+        }
+      );
+
+      // Auto-fallback if Mapbox request is blocked or fails
+      mapboxLayer.on('tileerror', () => {
+        if (!map._hasCartoFallback) {
+          map._hasCartoFallback = true;
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19,
+          }).addTo(map);
+        }
+      });
+
+      mapboxLayer.addTo(map);
+    } else {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(map);
+    }
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -220,6 +248,12 @@ export const LiveTrackingMap = ({
 
         {/* Right Status Badges */}
         <div className="pointer-events-auto flex items-center space-x-2">
+          {/* Tile Engine Badge */}
+          <div className="px-2.5 py-1.5 rounded-lg border text-[11px] font-medium flex items-center space-x-1.5 backdrop-blur-md shadow-md bg-blue-500/20 text-blue-300 border-blue-500/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            <span>{import.meta.env.VITE_MAPBOX_TOKEN?.startsWith('pk.') ? 'Mapbox Streets v12' : 'CartoDB Voyager'}</span>
+          </div>
+
           {/* Connection Pulse */}
           <div
             className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center space-x-1.5 backdrop-blur-md shadow-md ${
